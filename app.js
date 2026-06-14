@@ -1,5 +1,5 @@
-// BANANA test system v0.4
-// Step 4：會員查詢優化 + 建立 admins/{lineUserId}
+// BANANA test system v0.5
+// Step 6：管理者模式畫面
 
 const LIFF_ID = "2010390017-LUqEPvCz";
 const ADMIN_LINE_USER_ID = "U670542844997a75c503123bf06f4cfeb";
@@ -10,11 +10,25 @@ let currentMember = null;
 document.addEventListener("DOMContentLoaded", () => {
   initLiff();
 
-  const bindMemberButton = document.getElementById("bindMemberButton");
-  const editMemberButton = document.getElementById("editMemberButton");
+  document
+    .getElementById("bindMemberButton")
+    .addEventListener("click", bindMember);
 
-  bindMemberButton.addEventListener("click", bindMember);
-  editMemberButton.addEventListener("click", showEditForm);
+  document
+    .getElementById("editMemberButton")
+    .addEventListener("click", showEditForm);
+
+  document
+    .getElementById("systemStatusButton")
+    .addEventListener("click", showSystemStatus);
+
+  document
+    .getElementById("createTestProductButton")
+    .addEventListener("click", createTestProduct);
+
+  document
+    .getElementById("viewMembersButton")
+    .addEventListener("click", viewCurrentMemberData);
 });
 
 async function initLiff() {
@@ -39,7 +53,8 @@ async function initLiff() {
     currentProfile = await liff.getProfile();
 
     document.getElementById("lineUserId").textContent = currentProfile.userId;
-    document.getElementById("lineDisplayName").textContent = currentProfile.displayName;
+    document.getElementById("lineDisplayName").textContent =
+      currentProfile.displayName;
 
     resultText.textContent = "LINE 資料取得成功，正在查詢會員資料...";
 
@@ -76,6 +91,7 @@ async function loadMember() {
       resultText.textContent = "請填寫會員資料並按下綁定會員";
 
       showBindForm();
+      hideAdminArea();
       return;
     }
 
@@ -86,8 +102,10 @@ async function loadMember() {
     if (currentMember.role === "admin") {
       resultText.textContent = "會員資料讀取成功，目前為管理者模式";
       await syncAdminData(currentMember);
+      showAdminArea();
     } else {
       resultText.textContent = "會員資料讀取成功";
+      hideAdminArea();
     }
 
     showMemberInfo(currentMember);
@@ -123,9 +141,7 @@ async function bindMember() {
   }
 
   const role =
-    currentProfile.userId === ADMIN_LINE_USER_ID
-      ? "admin"
-      : "member";
+    currentProfile.userId === ADMIN_LINE_USER_ID ? "admin" : "member";
 
   try {
     statusText.textContent = "會員資料寫入中...";
@@ -211,10 +227,99 @@ function showEditForm() {
     return;
   }
 
-  document.getElementById("realNameInput").value = currentMember.realName || "";
-  document.getElementById("nicknameInput").value = currentMember.nickname || "";
+  document.getElementById("realNameInput").value =
+    currentMember.realName || "";
+  document.getElementById("nicknameInput").value =
+    currentMember.nickname || "";
   document.getElementById("phoneInput").value = currentMember.phone || "";
 
   document.getElementById("resultText").textContent =
     "你可以修改資料後重新按下綁定會員";
+}
+
+function showAdminArea() {
+  document.getElementById("adminArea").style.display = "block";
+}
+
+function hideAdminArea() {
+  document.getElementById("adminArea").style.display = "none";
+}
+
+function showSystemStatus() {
+  const resultText = document.getElementById("resultText");
+
+  resultText.innerHTML = `
+    <strong>系統狀態</strong><br>
+    LIFF：正常<br>
+    Firestore：正常<br>
+    目前版本：BANANA test system v0.5<br>
+    目前使用者：${currentProfile.displayName}<br>
+    目前角色：${currentMember.role}
+  `;
+}
+
+async function createTestProduct() {
+  const statusText = document.getElementById("statusText");
+  const resultText = document.getElementById("resultText");
+
+  if (!currentMember || currentMember.role !== "admin") {
+    resultText.textContent = "你沒有管理者權限";
+    return;
+  }
+
+  try {
+    statusText.textContent = "建立測試商品中...";
+
+    const productId = "TEST-PRODUCT-001";
+
+    await db.collection("products").doc(productId).set(
+      {
+        productId: productId,
+        groupId: "TEST-GROUP-001",
+        name: "BANANA 測試商品",
+        color: "Yellow",
+        size: "Free",
+        price: 100,
+        status: "active",
+        source: "BANANA test system",
+        createdBy: currentProfile.userId,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    statusText.textContent = "測試商品建立成功";
+
+    resultText.innerHTML = `
+      <strong>測試商品建立成功</strong><br>
+      collection：products<br>
+      document：${productId}<br>
+      商品名稱：BANANA 測試商品
+    `;
+  } catch (error) {
+    console.error("建立測試商品失敗：", error);
+
+    statusText.textContent = "建立測試商品失敗";
+    resultText.textContent = `錯誤訊息：${error.message}`;
+  }
+}
+
+function viewCurrentMemberData() {
+  const resultText = document.getElementById("resultText");
+
+  if (!currentMember) {
+    resultText.textContent = "目前沒有會員資料";
+    return;
+  }
+
+  resultText.innerHTML = `
+    <strong>目前會員資料</strong><br>
+    lineUserId：${currentMember.lineUserId}<br>
+    displayName：${currentMember.displayName}<br>
+    realName：${currentMember.realName}<br>
+    nickname：${currentMember.nickname}<br>
+    phone：${currentMember.phone}<br>
+    role：${currentMember.role}<br>
+    status：${currentMember.status}
+  `;
 }
