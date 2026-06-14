@@ -118,3 +118,13 @@ input:focus {
 #adminArea button {
   margin-top: 10px;
 }
+
+#adminArea {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed #d8cdb8;
+}
+
+#adminArea button {
+  margin-top: 10px;
+}
