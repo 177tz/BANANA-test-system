@@ -1,5 +1,5 @@
-// BANANA test system v0.3
-// Step 3：會員綁定 members/{lineUserId}
+// BANANA test system v0.4
+// Step 4：會員查詢優化 + 建立 admins/{lineUserId}
 
 const LIFF_ID = "2010390017-LUqEPvCz";
 const ADMIN_LINE_USER_ID = "U670542844997a75c503123bf06f4cfeb";
@@ -82,7 +82,13 @@ async function loadMember() {
     currentMember = memberDoc.data();
 
     statusText.textContent = "已綁定會員";
-    resultText.textContent = "會員資料讀取成功";
+
+    if (currentMember.role === "admin") {
+      resultText.textContent = "會員資料讀取成功，目前為管理者模式";
+      await syncAdminData(currentMember);
+    } else {
+      resultText.textContent = "會員資料讀取成功";
+    }
 
     showMemberInfo(currentMember);
   } catch (error) {
@@ -144,6 +150,10 @@ async function bindMember() {
 
     await memberRef.set(memberData, { merge: true });
 
+    if (role === "admin") {
+      await syncAdminData(memberData);
+    }
+
     statusText.textContent = "會員綁定成功";
     resultText.textContent = "會員資料已寫入 Firestore";
 
@@ -154,6 +164,27 @@ async function bindMember() {
     statusText.textContent = "會員綁定失敗";
     resultText.textContent = `錯誤訊息：${error.message}`;
   }
+}
+
+async function syncAdminData(member) {
+  if (!member || member.role !== "admin") {
+    return;
+  }
+
+  await db.collection("admins").doc(member.lineUserId).set(
+    {
+      lineUserId: member.lineUserId,
+      displayName: member.displayName,
+      realName: member.realName || "",
+      nickname: member.nickname || "",
+      phone: member.phone || "",
+      role: "admin",
+      status: "active",
+      source: "BANANA test system",
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 function showBindForm() {
