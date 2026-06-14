@@ -4,54 +4,55 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>BANANA Test System v0</title>
+  <title>BANANA test system v0.3</title>
 
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
   <main class="page">
     <section class="card">
       <p class="eyebrow">BANANA LIFF TEST</p>
-      
+
       <h1>BANANA test system v0.3</h1>
-      
+
       <p class="description">
         這是 BANANA test system 的會員綁定測試頁。
         目前會透過 LIFF 取得 LINE 使用者資料，並寫入 Firebase Firestore。
       </p>
-      
+
       <div class="info-box">
         <p><strong>目前狀態：</strong><span id="statusText">初始化中...</span></p>
         <p><strong>LINE userId：</strong><span id="lineUserId">尚未取得</span></p>
         <p><strong>LINE 名稱：</strong><span id="lineDisplayName">尚未取得</span></p>
       </div>
-      
+
       <div id="memberFormArea">
         <h2>會員綁定</h2>
-      
+
         <label>
           本名
           <input id="realNameInput" type="text" placeholder="請輸入本名" />
         </label>
-      
+
         <label>
           暱稱
           <input id="nicknameInput" type="text" placeholder="請輸入暱稱" />
         </label>
-      
+
         <label>
           電話
           <input id="phoneInput" type="tel" placeholder="請輸入電話" />
         </label>
-      
+
         <button id="bindMemberButton" type="button">
           綁定會員
         </button>
       </div>
-      
+
       <div id="memberInfoArea" style="display: none;">
         <h2>已綁定會員</h2>
-      
+
         <div class="info-box">
           <p><strong>本名：</strong><span id="savedRealName"></span></p>
           <p><strong>暱稱：</strong><span id="savedNickname"></span></p>
@@ -59,12 +60,12 @@
           <p><strong>角色：</strong><span id="savedRole"></span></p>
           <p><strong>狀態：</strong><span id="savedStatus"></span></p>
         </div>
-      
+
         <button id="editMemberButton" type="button">
           修改會員資料
         </button>
       </div>
-      
+
       <p id="resultText" class="result-text">
         尚未完成初始化
       </p>
@@ -75,7 +76,7 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  
+
   <script src="./firebase-config.js"></script>
   <script src="./app.js"></script>
 </body>
