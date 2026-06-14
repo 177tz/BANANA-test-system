@@ -107,3 +107,14 @@ input:focus {
   outline: 2px solid #f6c343;
   border-color: #f6c343;
 }
+
+
+#adminArea {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed #d8cdb8;
+}
+
+#adminArea button {
+  margin-top: 10px;
+}
