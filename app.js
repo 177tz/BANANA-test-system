@@ -1,5 +1,5 @@
 // BANANA test system v0.6
-// Step 6：管理者功能區 + brands/products/counters 自動編號
+// Step 6：memberId 自動編號 + brands/products/counters
 
 const LIFF_ID = "2010390017-LUqEPvCz";
 const ADMIN_LINE_USER_ID = "U670542844997a75c503123bf06f4cfeb";
@@ -21,6 +21,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("systemStatusButton")
     .addEventListener("click", showSystemStatus);
+
+  document
+    .getElementById("fixMemberIdButton")
+    .addEventListener("click", fixCurrentMemberId);
 
   document
     .getElementById("createTestBrandButton")
@@ -83,10 +87,8 @@ async function loadMember() {
   try {
     statusText.textContent = "查詢會員資料中...";
 
-    const memberDoc = await db
-      .collection("members")
-      .doc(currentProfile.userId)
-      .get();
+    const memberRef = db.collection("members").doc(currentProfile.userId);
+    const memberDoc = await memberRef.get();
 
     if (!memberDoc.exists) {
       currentMember = null;
@@ -100,6 +102,13 @@ async function loadMember() {
     }
 
     currentMember = memberDoc.data();
+
+    if (!currentMember.memberId) {
+      resultText.textContent = "會員尚未有編號，正在自動補上...";
+      await ensureMemberId(currentProfile.userId);
+      const refreshedDoc = await memberRef.get();
+      currentMember = refreshedDoc.data();
+    }
 
     statusText.textContent = "已綁定會員";
 
@@ -165,13 +174,23 @@ async function bindMember() {
     };
 
     if (!existingDoc.exists) {
+      memberData.memberId = await getNextId("members", "MB", 6);
       memberData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    } else {
+      const existingData = existingDoc.data();
+      if (!existingData.memberId) {
+        memberData.memberId = await getNextId("members", "MB", 6);
+      }
     }
 
     await memberRef.set(memberData, { merge: true });
 
     if (role === "admin") {
-      await syncAdminData(memberData);
+      await syncAdminData({
+        ...memberData,
+        lineUserId: currentProfile.userId,
+        displayName: currentProfile.displayName,
+      });
     }
 
     statusText.textContent = "會員綁定成功";
@@ -186,6 +205,80 @@ async function bindMember() {
   }
 }
 
+async function ensureMemberId(lineUserId) {
+  const memberRef = db.collection("members").doc(lineUserId);
+
+  await db.runTransaction(async (transaction) => {
+    const memberDoc = await transaction.get(memberRef);
+
+    if (!memberDoc.exists) {
+      throw new Error("找不到會員資料，無法補上 memberId");
+    }
+
+    const memberData = memberDoc.data();
+
+    if (memberData.memberId) {
+      return;
+    }
+
+    const counterRef = db.collection("counters").doc("members");
+    const counterDoc = await transaction.get(counterRef);
+
+    let nextNumber = 1;
+
+    if (counterDoc.exists) {
+      const counterData = counterDoc.data();
+      nextNumber = Number(counterData.currentNumber || 0) + 1;
+    }
+
+    const memberId = `MB-${String(nextNumber).padStart(6, "0")}`;
+
+    transaction.set(
+      counterRef,
+      {
+        counterName: "members",
+        prefix: "MB",
+        currentNumber: nextNumber,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    transaction.set(
+      memberRef,
+      {
+        memberId: memberId,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+}
+
+async function fixCurrentMemberId() {
+  const statusText = document.getElementById("statusText");
+  const resultText = document.getElementById("resultText");
+
+  if (!assertAdmin()) {
+    return;
+  }
+
+  try {
+    statusText.textContent = "補上會員編號中...";
+
+    await ensureMemberId(currentProfile.userId);
+    await loadMember();
+
+    statusText.textContent = "會員編號補上成功";
+    resultText.textContent = `目前會員編號：${currentMember.memberId}`;
+  } catch (error) {
+    console.error("補上會員編號失敗：", error);
+
+    statusText.textContent = "補上會員編號失敗";
+    resultText.textContent = `錯誤訊息：${error.message}`;
+  }
+}
+
 async function syncAdminData(member) {
   if (!member || member.role !== "admin") {
     return;
@@ -193,6 +286,7 @@ async function syncAdminData(member) {
 
   await db.collection("admins").doc(member.lineUserId).set(
     {
+      memberId: member.memberId || "",
       lineUserId: member.lineUserId,
       displayName: member.displayName,
       realName: member.realName || "",
@@ -216,6 +310,8 @@ function showMemberInfo(member) {
   document.getElementById("memberFormArea").style.display = "none";
   document.getElementById("memberInfoArea").style.display = "block";
 
+  document.getElementById("savedMemberId").textContent =
+    member.memberId || "尚未建立";
   document.getElementById("savedRealName").textContent = member.realName || "";
   document.getElementById("savedNickname").textContent = member.nickname || "";
   document.getElementById("savedPhone").textContent = member.phone || "";
@@ -267,6 +363,7 @@ function showSystemStatus() {
     Firestore：正常<br>
     目前版本：BANANA test system v0.6<br>
     目前使用者：${currentProfile.displayName}<br>
+    會員編號：${currentMember.memberId || "尚未建立"}<br>
     目前角色：${currentMember.role}<br>
     目前資料結構：members / admins / brands / products / counters
   `;
@@ -436,6 +533,7 @@ function viewCurrentMemberData() {
 
   resultText.innerHTML = `
     <strong>目前會員資料</strong><br>
+    memberId：${currentMember.memberId || "尚未建立"}<br>
     lineUserId：${currentMember.lineUserId}<br>
     displayName：${currentMember.displayName}<br>
     realName：${currentMember.realName}<br>

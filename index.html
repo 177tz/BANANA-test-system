@@ -54,6 +54,7 @@
         <h2>已綁定會員</h2>
 
         <div class="info-box">
+          <p><strong>會員編號：</strong><span id="savedMemberId"></span></p>
           <p><strong>本名：</strong><span id="savedRealName"></span></p>
           <p><strong>暱稱：</strong><span id="savedNickname"></span></p>
           <p><strong>電話：</strong><span id="savedPhone"></span></p>
@@ -68,24 +69,28 @@
 
       <div id="adminArea" style="display: none;">
         <h2>管理者功能</h2>
-      
+
         <div class="info-box">
           <p><strong>管理者模式：</strong>已啟用</p>
           <p><strong>目前系統：</strong>BANANA test system v0.6</p>
         </div>
-      
+
         <button id="systemStatusButton" type="button">
           查看系統狀態
         </button>
-      
+
+        <button id="fixMemberIdButton" type="button">
+          補上會員編號
+        </button>
+
         <button id="createTestBrandButton" type="button">
           建立測試品牌
         </button>
-      
+
         <button id="createTestProductButton" type="button">
           建立測試商品
         </button>
-      
+
         <button id="viewMembersButton" type="button">
           查看會員資料
         </button>
