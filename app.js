@@ -1,5 +1,5 @@
-// BANANA test system v0.5
-// Step 6：管理者模式畫面
+// BANANA test system v0.6
+// Step 6：管理者功能區 + brands/products/counters 自動編號
 
 const LIFF_ID = "2010390017-LUqEPvCz";
 const ADMIN_LINE_USER_ID = "U670542844997a75c503123bf06f4cfeb";
@@ -21,6 +21,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("systemStatusButton")
     .addEventListener("click", showSystemStatus);
+
+  document
+    .getElementById("createTestBrandButton")
+    .addEventListener("click", createTestBrand);
 
   document
     .getElementById("createTestProductButton")
@@ -245,6 +249,15 @@ function hideAdminArea() {
   document.getElementById("adminArea").style.display = "none";
 }
 
+function assertAdmin() {
+  if (!currentMember || currentMember.role !== "admin") {
+    document.getElementById("resultText").textContent = "你沒有管理者權限";
+    return false;
+  }
+
+  return true;
+}
+
 function showSystemStatus() {
   const resultText = document.getElementById("resultText");
 
@@ -252,41 +265,148 @@ function showSystemStatus() {
     <strong>系統狀態</strong><br>
     LIFF：正常<br>
     Firestore：正常<br>
-    目前版本：BANANA test system v0.5<br>
+    目前版本：BANANA test system v0.6<br>
     目前使用者：${currentProfile.displayName}<br>
-    目前角色：${currentMember.role}
+    目前角色：${currentMember.role}<br>
+    目前資料結構：members / admins / brands / products / counters
   `;
+}
+
+async function getNextId(counterName, prefix, padLength) {
+  const counterRef = db.collection("counters").doc(counterName);
+
+  return db.runTransaction(async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
+
+    let nextNumber = 1;
+
+    if (counterDoc.exists) {
+      const data = counterDoc.data();
+      nextNumber = Number(data.currentNumber || 0) + 1;
+    }
+
+    transaction.set(
+      counterRef,
+      {
+        counterName: counterName,
+        prefix: prefix,
+        currentNumber: nextNumber,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return `${prefix}-${String(nextNumber).padStart(padLength, "0")}`;
+  });
+}
+
+async function createTestBrand() {
+  const statusText = document.getElementById("statusText");
+  const resultText = document.getElementById("resultText");
+
+  if (!assertAdmin()) {
+    return;
+  }
+
+  try {
+    statusText.textContent = "建立測試品牌中...";
+
+    const brandId = await getNextId("brands", "BR", 4);
+
+    const brandData = {
+      brandId: brandId,
+      brandCode: "BANANA",
+      brandName: "BANANA Test Brand",
+      country: "Thailand",
+      status: "active",
+      source: "BANANA test system",
+      createdBy: currentProfile.userId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await db.collection("brands").doc(brandId).set(brandData);
+
+    statusText.textContent = "測試品牌建立成功";
+
+    resultText.innerHTML = `
+      <strong>測試品牌建立成功</strong><br>
+      collection：brands<br>
+      document：${brandId}<br>
+      brandCode：BANANA<br>
+      brandName：BANANA Test Brand
+    `;
+  } catch (error) {
+    console.error("建立測試品牌失敗：", error);
+
+    statusText.textContent = "建立測試品牌失敗";
+    resultText.textContent = `錯誤訊息：${error.message}`;
+  }
+}
+
+async function getOrCreateBananaBrand() {
+  const existingBrandQuery = await db
+    .collection("brands")
+    .where("brandCode", "==", "BANANA")
+    .limit(1)
+    .get();
+
+  if (!existingBrandQuery.empty) {
+    const doc = existingBrandQuery.docs[0];
+    return doc.data();
+  }
+
+  const brandId = await getNextId("brands", "BR", 4);
+
+  const brandData = {
+    brandId: brandId,
+    brandCode: "BANANA",
+    brandName: "BANANA Test Brand",
+    country: "Thailand",
+    status: "active",
+    source: "BANANA test system",
+    createdBy: currentProfile.userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await db.collection("brands").doc(brandId).set(brandData);
+
+  return brandData;
 }
 
 async function createTestProduct() {
   const statusText = document.getElementById("statusText");
   const resultText = document.getElementById("resultText");
 
-  if (!currentMember || currentMember.role !== "admin") {
-    resultText.textContent = "你沒有管理者權限";
+  if (!assertAdmin()) {
     return;
   }
 
   try {
     statusText.textContent = "建立測試商品中...";
 
-    const productId = "TEST-PRODUCT-001";
+    const brand = await getOrCreateBananaBrand();
+    const productId = await getNextId("products", "PD", 6);
 
-    await db.collection("products").doc(productId).set(
-      {
-        productId: productId,
-        groupId: "TEST-GROUP-001",
-        name: "BANANA 測試商品",
-        color: "Yellow",
-        size: "Free",
-        price: 100,
-        status: "active",
-        source: "BANANA test system",
-        createdBy: currentProfile.userId,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    const productData = {
+      productId: productId,
+      brandId: brand.brandId,
+      brandCode: brand.brandCode,
+      brandName: brand.brandName,
+      productName: "BANANA 測試商品",
+      color: "Yellow",
+      size: "Free",
+      price: 100,
+      currency: "TWD",
+      status: "active",
+      source: "BANANA test system",
+      createdBy: currentProfile.userId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await db.collection("products").doc(productId).set(productData);
 
     statusText.textContent = "測試商品建立成功";
 
@@ -294,6 +414,8 @@ async function createTestProduct() {
       <strong>測試商品建立成功</strong><br>
       collection：products<br>
       document：${productId}<br>
+      brandId：${brand.brandId}<br>
+      brandName：${brand.brandName}<br>
       商品名稱：BANANA 測試商品
     `;
   } catch (error) {
